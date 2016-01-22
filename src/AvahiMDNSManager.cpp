@@ -17,6 +17,13 @@
 #include <unordered_map>
 #include <utility>
 #include <atomic>
+#include <mutex>
+#include <thread>
+
+extern "C" {
+#include <sys/poll.h>
+#include <signal.h>
+}
 
 #include <avahi-client/client.h>
 #include <avahi-client/lookup.h>
@@ -28,13 +35,16 @@
 #include <avahi-common/gccmacro.h>
 #include <avahi-common/malloc.h>
 #include <avahi-common/strlst.h>
-#include <avahi-common/thread-watch.h>
+#include <avahi-common/simple-watch.h>
 
 namespace MDNS
 {
 
 namespace
 {
+
+typedef std::recursive_mutex ImplMutex;
+typedef std::lock_guard<std::recursive_mutex> ImplLockGuard;
 
 class AvahiError: public std::runtime_error
 {
@@ -144,25 +154,6 @@ inline std::string fromAvahiStr(const char *str)
     return str ? str : "";
 }
 
-class AvahiPollGuard
-{
-public:
-
-    AvahiPollGuard(AvahiThreadedPoll *threadedPoll)
-        : threadedPoll_(threadedPoll)
-    {
-        avahi_threaded_poll_lock(threadedPoll_);
-    }
-
-    ~AvahiPollGuard()
-    {
-        avahi_threaded_poll_unlock(threadedPoll_);
-    }
-
-private:
-    AvahiThreadedPoll *threadedPoll_;
-};
-
 class ServiceResolverGuard
 {
 public:
@@ -269,14 +260,14 @@ public:
                     /* And recreate the services */
                     avahi_entry_group_reset(self->group);
                     self->nextToRegister = 0;
-                    self->registerMissingServices(avahi_entry_group_get_client(g), /*callFromThread=*/true);
+                    self->registerMissingServices(avahi_entry_group_get_client(g));
                     break;
                 }
 
                 case AVAHI_ENTRY_GROUP_FAILURE:
                     self->pimpl.avahiError("Entry group failure",
                                      avahi_entry_group_get_client(g));
-                    self->pimpl.stopThread(/*callFromThread=*/true);
+                    self->pimpl.stopThread();
                     break;
                 case AVAHI_ENTRY_GROUP_UNCOMMITED:
                 case AVAHI_ENTRY_GROUP_REGISTERING:
@@ -286,7 +277,7 @@ public:
             }
         }
 
-        bool registerMissingServices(AvahiClient *client, bool callFromThread)
+        bool registerMissingServices(AvahiClient *client)
         {
             assert(client);
 
@@ -306,7 +297,7 @@ public:
                 {
                     pimpl.avahiError("avahi_entry_group_new() failed : ",
                                      client);
-                    pimpl.stopThread(callFromThread);
+                    pimpl.stopThread();
                     return false;
                 }
             }
@@ -327,7 +318,7 @@ public:
                 needToCommit = false;
                 while (nextToRegister < services.size())
                 {
-                    int error = registerService(client, services[nextToRegister], callFromThread);
+                    int error = registerService(client, services[nextToRegister]);
 
                     if (error == AVAHI_OK)
                     {
@@ -359,7 +350,7 @@ public:
             if (ret < 0)
             {
                 pimpl.avahiError("Failed to commit entry group", ret);
-                pimpl.stopThread(callFromThread);
+                pimpl.stopThread();
                 return false;
             }
             return true;
@@ -368,7 +359,7 @@ public:
         /**
          * Returns avahi error code
          */
-        int registerService(AvahiClient *client, const MDNSService &service, bool callFromThread)
+        int registerService(AvahiClient *client, const MDNSService &service)
         {
             assert(client);
             assert(group);
@@ -391,7 +382,7 @@ public:
             if (error < 0)
             {
                 pimpl.avahiError("avahi_entry_group_add_service_strlst() failed", error);
-                pimpl.stopThread(callFromThread);
+                pimpl.stopThread();
                 return error;
             }
 
@@ -408,7 +399,7 @@ public:
                 if (error < 0)
                 {
                     pimpl.avahiError("avahi_entry_group_add_service_subtype() failed: subtype: "+subtype, error);
-                    pimpl.stopThread(callFromThread);
+                    pimpl.stopThread();
                     return error;
                 }
             }
@@ -521,7 +512,7 @@ public:
                 case AVAHI_BROWSER_FAILURE:
 
                     self->pimpl.avahiError("Browser failure", client);
-                    self->pimpl.stopThread(/*callFromThread=*/true);
+                    self->pimpl.stopThread();
                     return;
 
                 case AVAHI_BROWSER_NEW:
@@ -582,8 +573,12 @@ public:
 
     AvahiClient *client;
     bool clientRunning;
-    std::atomic<bool> threadRunning;
-    AvahiThreadedPoll *threadedPoll;
+
+    AvahiSimplePoll *simplePoll;
+    std::thread thread;
+    ImplMutex mutex;
+    int retval;
+
     MDNSManager::AlternativeServiceNameHandler alternativeServiceNameHandler;
     MDNSManager::ErrorHandler errorHandler;
 
@@ -592,22 +587,23 @@ public:
     std::vector<std::string> errorLog;
 
     PImpl()
-        : client(0), clientRunning(false), threadRunning(false), threadedPoll(0), serviceRecords()
+        : client(0), clientRunning(false), simplePoll(0), thread(), mutex()
+        , serviceRecords(), browserRecords(), errorLog()
     {
-        if (!(threadedPoll = avahi_threaded_poll_new()))
+        if (!(simplePoll = avahi_simple_poll_new()))
         {
-            throw AvahiError("Could not allocate Avahi threaded poll");
+            throw AvahiError("Could not allocate Avahi simple poll");
         }
 
-        threadRunning = true;
+        avahi_simple_poll_set_func(simplePoll, pollFunc, this);
 
         int error;
 
-        if (!(client = avahi_client_new(avahi_threaded_poll_get(threadedPoll),
+        if (!(client = avahi_client_new(avahi_simple_poll_get(simplePoll),
                                         (AvahiClientFlags) 0, clientCB, this,
                                         &error)))
         {
-            avahi_threaded_poll_free(threadedPoll);
+            avahi_simple_poll_free(simplePoll);
             throw AvahiClientError("Could not allocate Avahi client", error);
         }
     }
@@ -621,49 +617,74 @@ public:
         serviceRecords.clear();
         browserRecords.clear();
         avahi_client_free(client);
-        avahi_threaded_poll_free(threadedPoll);
+        avahi_simple_poll_free(simplePoll);
+    }
+
+    static int pollFunc(struct pollfd *ufds, unsigned int nfds, int timeout, void *userdata)
+    {
+        PImpl *self = reinterpret_cast<PImpl*>(userdata);
+
+        int r;
+
+        /* Before entering poll() we unlock the mutex, so that
+         * avahi_simple_poll_quit() can succeed from another thread. */
+
+        self->mutex.unlock();
+        r = poll(ufds, nfds, timeout);
+        self->mutex.lock();
+
+        return r;
+    }
+
+    void eventLoop()
+    {
+        sigset_t mask;
+
+        /* Make sure that signals are delivered to the main thread */
+        sigfillset(&mask);
+        pthread_sigmask(SIG_BLOCK, &mask, NULL);
+
+        {
+            ImplLockGuard g(mutex);
+            retval = avahi_simple_poll_loop(simplePoll);
+        }
     }
 
     void run()
     {
-        if (avahi_threaded_poll_start(threadedPoll) < 0)
+        if (thread.joinable())
         {
-            throw AvahiError("Could not start Avahi threaded poll");
+            throw std::logic_error("MDNSManager already running");
         }
+        thread = std::move(std::thread(&PImpl::eventLoop, this));
     }
 
-    void stopThread(bool callFromThread)
+    void stopThread()
     {
-        if (threadRunning.exchange(false))
-        {
-            if (callFromThread)
-                avahi_threaded_poll_quit(threadedPoll);
-            else
-            {
-                // all calls to stopThread are guarded, so we need to unlock first
-                avahi_threaded_poll_unlock(threadedPoll);
-                avahi_threaded_poll_stop(threadedPoll);
-                avahi_threaded_poll_lock(threadedPoll);
-            }
-        }
+        ImplLockGuard g(mutex);
+        avahi_simple_poll_quit(simplePoll);
     }
 
     void stop()
     {
-        if (threadRunning.exchange(false))
+        if (!thread.joinable())
         {
-            avahi_threaded_poll_stop(threadedPoll);
+            throw std::logic_error("MDNSManager is not running");
         }
+
+        stopThread();
+
+        thread.join();
     }
 
-    void registerMissingServices(AvahiClient *client, bool callFromThread)
+    void registerMissingServices(AvahiClient *client)
     {
         if (!clientRunning)
             return;
         for (auto it = serviceRecords.begin(), eit = serviceRecords.end();
                 it != eit; ++it)
         {
-            it->second.registerMissingServices(client, callFromThread);
+            it->second.registerMissingServices(client);
         }
     }
 
@@ -708,13 +729,13 @@ public:
                 self->clientRunning = true;
                 /* The server has startup successfully and registered its host
                  * name on the network, so it's time to create our services */
-                self->registerMissingServices(client, /*callFromThread=*/true);
+                self->registerMissingServices(client);
                 break;
 
             case AVAHI_CLIENT_FAILURE:
             {
                 self->avahiError("Client failure", client);
-                self->stopThread(/*callFromThread=*/true);
+                self->stopThread();
                 break;
             }
             case AVAHI_CLIENT_S_COLLISION:
@@ -798,13 +819,13 @@ void MDNSManager::stop()
 
 void MDNSManager::setAlternativeServiceNameHandler(MDNSManager::AlternativeServiceNameHandler handler)
 {
-    AvahiPollGuard g(pimpl_->threadedPoll);
+    ImplLockGuard g(pimpl_->mutex);
     pimpl_->alternativeServiceNameHandler = handler;
 }
 
 void MDNSManager::setErrorHandler(MDNSManager::ErrorHandler handler)
 {
-    AvahiPollGuard g(pimpl_->threadedPoll);
+    ImplLockGuard g(pimpl_->mutex);
     pimpl_->errorHandler = handler;
 }
 
@@ -813,7 +834,7 @@ void MDNSManager::registerService(MDNSService &service)
     if (service.getId() != MDNSService::NO_SERVICE)
         throw std::logic_error("Service was already registered");
 
-    AvahiPollGuard g(pimpl_->threadedPoll);
+    ImplLockGuard g(pimpl_->mutex);
 
     MDNSManager::PImpl::AvahiServiceRecord *serviceRec = 0;
     auto it = pimpl_->serviceRecords.find(service.getName());
@@ -829,7 +850,7 @@ void MDNSManager::registerService(MDNSService &service)
     setServiceId(service, serviceId);
 
     serviceRec->services.push_back(service);
-    pimpl_->registerMissingServices(pimpl_->client, /*callFromThread=*/false);
+    pimpl_->registerMissingServices(pimpl_->client);
 }
 
 void MDNSManager::unregisterService(MDNSService &service)
@@ -837,7 +858,7 @@ void MDNSManager::unregisterService(MDNSService &service)
     if (service.getId() == MDNSService::NO_SERVICE)
         throw std::logic_error("Service was not registered");
 
-    AvahiPollGuard g(pimpl_->threadedPoll);
+    ImplLockGuard g(pimpl_->mutex);
 
     for (auto it = pimpl_->serviceRecords.begin(), eit = pimpl_->serviceRecords.end(); it != eit; ++it)
     {
@@ -855,7 +876,7 @@ void MDNSManager::unregisterService(MDNSService &service)
         if (changed)
         {
             //it->second.resetServices();
-            it->second.registerMissingServices(pimpl_->client, /*callFromThread=*/false);
+            it->second.registerMissingServices(pimpl_->client);
         }
     }
 }
@@ -869,7 +890,7 @@ void MDNSManager::registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
     if (type.empty())
         throw std::logic_error("type argument can't be empty");
 
-    AvahiPollGuard g(pimpl_->threadedPoll);
+    ImplLockGuard g(pimpl_->mutex);
 
     if (subtypes)
     {
@@ -888,7 +909,7 @@ void MDNSManager::registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
 
 void MDNSManager::unregisterServiceBrowser(const MDNSServiceBrowser::Ptr & browser)
 {
-    AvahiPollGuard g(pimpl_->threadedPoll);
+    ImplLockGuard g(pimpl_->mutex);
 
     pimpl_->browserRecords.erase(browser);
 }
@@ -898,7 +919,7 @@ std::vector<std::string> MDNSManager::getErrorLog()
 
     std::vector<std::string> result;
     {
-        AvahiPollGuard g(pimpl_->threadedPoll);
+        ImplLockGuard g(pimpl_->mutex);
         result.swap(pimpl_->errorLog);
     }
     return result;

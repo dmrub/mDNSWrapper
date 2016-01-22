@@ -56,7 +56,7 @@ find_package(Avahi)
 
 if (AVAHI_FOUND)
     add_library(mDNSWrapper "src/CommonMDNSManager.cpp" "src/AvahiMDNSManager.cpp")
-    target_link_libraries(mDNSWrapper ${AVAHI_LIBRARIES})
+    target_link_libraries(mDNSWrapper ${AVAHI_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 elseif(BONJOUR_FOUND)
     add_library(mDNSWrapper "src/CommonMDNSManager.cpp" "src/BonjourMDNSManager.cpp")
     target_link_libraries(mDNSWrapper ${BONJOUR_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
