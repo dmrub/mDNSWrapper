@@ -468,7 +468,7 @@ public:
                 service.setType(std::move(rr->type));
                 service.setDomain(std::move(rr->domain));
                 service.setHost(std::move(host));
-                service.setPort(port);
+                service.setPort(ntohs(port));
                 service.setTxtRecords(decodeTxtRecordData(txtLen, txtRecord));
 
                 self->handler->onNewService(service);
@@ -691,7 +691,7 @@ void MDNSManager::registerService(MDNSService &service)
                                toDnsSdStr(serviceType),
                                toDnsSdStr(service.getDomain()),
                                toDnsSdStr(service.getHost()),
-                               service.getPort(),
+                               htons(service.getPort()),
                                static_cast<uint16_t>(txtRecordData.empty() ? 0 : txtRecordData.length()+1),
                                txtRecordData.empty() ? NULL : txtRecordData.c_str(),
                                &MDNSManager::PImpl::RegisterRecord::registerCB, // register callback
