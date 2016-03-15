@@ -669,7 +669,7 @@ public:
     {
         if (!thread.joinable())
         {
-            throw std::logic_error("MDNSManager is not running");
+            return;
         }
 
         stopThread();
