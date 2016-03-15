@@ -1,5 +1,5 @@
 /*
- * testclient.cpp
+ * mdns-watch.cpp
  *
  *  Created on: Jan 12, 2016
  *      Author: Dmitri Rubinstein

@@ -67,5 +67,5 @@ endif()
 add_executable(test_mdnswrapper "src/testwrapper.cpp")
 target_link_libraries(test_mdnswrapper mDNSWrapper)
 
-add_executable(watch_mdns "src/watch_mdns.cpp")
-target_link_libraries(watch_mdns mDNSWrapper)
+add_executable(mdns-watch "src/mdns-watch.cpp")
+target_link_libraries(mdns-watch mDNSWrapper)
