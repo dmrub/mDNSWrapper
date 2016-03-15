@@ -69,3 +69,6 @@ target_link_libraries(test_mdnswrapper mDNSWrapper)
 
 add_executable(mdns-watch "src/mdns-watch.cpp")
 target_link_libraries(mdns-watch mDNSWrapper)
+
+add_executable(mdns-register "src/mdns-register.cpp")
+target_link_libraries(mdns-register mDNSWrapper)
