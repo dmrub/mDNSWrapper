@@ -124,5 +124,10 @@ int main(int argc, char **argv)
 
     mgr.run();
 
-    std::cin.get();
+    mgr.wait();
+
+    if (!quiet)
+        std::cout << "Exiting" << std::endl;
+
+    return 0;
 }

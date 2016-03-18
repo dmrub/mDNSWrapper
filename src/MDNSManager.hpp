@@ -308,6 +308,9 @@ public:
 
     void stop();
 
+    // Wait unitl manager is stopped from different thread
+    void wait();
+
     /**
      * Register handler for service name changes due to conflicts. Handler is executed in the event loop thread.
      */

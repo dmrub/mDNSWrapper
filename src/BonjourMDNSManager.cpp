@@ -582,6 +582,15 @@ public:
         thread.join();
     }
 
+    void wait()
+    {
+        if (!thread.joinable())
+        {
+            return;
+        }
+        thread.join();
+    }
+
     void error(std::string errorMsg)
     {
         ImplLockGuard g(mutex);
@@ -639,6 +648,11 @@ void MDNSManager::run()
 void MDNSManager::stop()
 {
     pimpl_->stop();
+}
+
+void MDNSManager::wait()
+{
+    pimpl_->wait();
 }
 
 void MDNSManager::setAlternativeServiceNameHandler(MDNSManager::AlternativeServiceNameHandler handler)

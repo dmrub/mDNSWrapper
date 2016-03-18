@@ -35,6 +35,10 @@ void MDNSManager::stop()
 {
 }
 
+void MDNSManager::wait()
+{
+}
+
 void MDNSManager::setAlternativeServiceNameHandler(MDNSManager::AlternativeServiceNameHandler handler)
 {
 }

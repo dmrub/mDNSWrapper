@@ -677,6 +677,16 @@ public:
         thread.join();
     }
 
+    void wait()
+    {
+        if (!thread.joinable())
+        {
+            return;
+        }
+
+        thread.join();
+    }
+
     void registerMissingServices(AvahiClient *client)
     {
         if (!clientRunning)
@@ -815,6 +825,11 @@ void MDNSManager::run()
 void MDNSManager::stop()
 {
     pimpl_->stop();
+}
+
+void MDNSManager::wait()
+{
+    pimpl_->wait();
 }
 
 void MDNSManager::setAlternativeServiceNameHandler(MDNSManager::AlternativeServiceNameHandler handler)
