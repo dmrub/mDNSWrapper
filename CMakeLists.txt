@@ -51,6 +51,8 @@ find_package(Threads REQUIRED)
 find_package(Bonjour)
 find_package(Avahi)
 
+# Build
+
 #set(AVAHI_FOUND FALSE)
 #set(BONJOUR_FOUND FALSE)
 
@@ -72,3 +74,9 @@ target_link_libraries(mdns-watch mDNSWrapper)
 
 add_executable(mdns-register "src/mdns-register.cpp")
 target_link_libraries(mdns-register mDNSWrapper)
+
+# Install
+
+install(TARGETS test_mdnswrapper mdns-watch mdns-register DESTINATION bin)
+install(TARGETS mDNSWrapper DESTINATION lib)
+install(FILES src/MDNSManager.hpp DESTINATION include)
