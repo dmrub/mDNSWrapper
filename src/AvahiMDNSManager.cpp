@@ -376,7 +376,7 @@ public:
 
             if (error == AVAHI_ERR_COLLISION)
             {
-                return false;
+                return AVAHI_ERR_COLLISION;
             }
 
             if (error < 0)
