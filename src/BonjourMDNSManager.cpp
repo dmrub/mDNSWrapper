@@ -600,10 +600,10 @@ public:
         errorLog.push_back(std::move(errorMsg));
     }
 
-    void registerServiceBrowser(uint32_t interfaceIndex,
+    void registerServiceBrowser(const MDNSServiceBrowser::Ptr & browser,
+                                uint32_t interfaceIndex,
                                 const char *dnsType,
-                                const char *dnsDomain,
-                                const MDNSServiceBrowser::Ptr & browser)
+                                const char *dnsDomain)
     {
         std::unique_ptr<BrowserRecord> brec(new BrowserRecord(browser, *this));
 
@@ -736,11 +736,11 @@ void MDNSManager::unregisterService(MDNSService &service)
     }
 }
 
-void MDNSManager::registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
+void MDNSManager::registerServiceBrowser(const MDNSServiceBrowser::Ptr & browser,
+                                         MDNSInterfaceIndex interfaceIndex,
                                          const std::string &type,
                                          const std::vector<std::string> *subtypes,
-                                         const std::string &domain,
-                                         const MDNSServiceBrowser::Ptr & browser)
+                                         const std::string &domain)
 {
     if (type.empty())
         throw std::logic_error("type argument can't be empty");
@@ -756,18 +756,18 @@ void MDNSManager::registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
                 subtype = type;
                 if (!it->empty())
                     subtype += ("," + *it);
-                pimpl_->registerServiceBrowser(toDnsSdInterfaceIndex(interfaceIndex),
+                pimpl_->registerServiceBrowser(browser,
+                                               toDnsSdInterfaceIndex(interfaceIndex),
                                                subtype.c_str(),
-                                               toDnsSdStr(domain),
-                                               browser);
+                                               toDnsSdStr(domain));
             }
         }
         else
         {
-            pimpl_->registerServiceBrowser(toDnsSdInterfaceIndex(interfaceIndex),
+            pimpl_->registerServiceBrowser(browser,
+                                           toDnsSdInterfaceIndex(interfaceIndex),
                                            type.c_str(),
-                                           toDnsSdStr(domain),
-                                           browser);
+                                           toDnsSdStr(domain));
         }
     }
 }

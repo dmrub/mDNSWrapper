@@ -330,17 +330,17 @@ public:
      * service type, and domain.
      * Browser handler methods are called in event loop thread.
      */
-    void registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
+    void registerServiceBrowser(const MDNSServiceBrowser::Ptr & browser,
+                                MDNSInterfaceIndex interfaceIndex,
                                 const std::string &type,
-                                const std::string &domain,
-                                const MDNSServiceBrowser::Ptr & browser)
+                                const std::string &domain)
     {
         // receive available service types when type is empty
-        registerServiceBrowser(interfaceIndex,
+        registerServiceBrowser(browser,
+                               interfaceIndex,
                                type.empty() ? "_services._dns-sd._udp" : type,
                                static_cast<std::vector<std::string> *>(0),
-                               domain,
-                               browser);
+                               domain);
     }
 
     /**
@@ -348,18 +348,18 @@ public:
      * service type, subtypes and domain.
      * Browser handler methods are called in event loop thread.
      */
-    void registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
+    void registerServiceBrowser(const MDNSServiceBrowser::Ptr & browser,
+                                MDNSInterfaceIndex interfaceIndex,
                                 const std::string &type,
                                 const std::vector<std::string> &subtypes,
-                                const std::string &domain,
-                                const MDNSServiceBrowser::Ptr & browser)
+                                const std::string &domain)
     {
         // receive available service types when type is empty
-        registerServiceBrowser(interfaceIndex,
+        registerServiceBrowser(browser,
+                               interfaceIndex,
                                type.empty() ? "_services._dns-sd._udp" : type,
                                &subtypes,
-                               domain,
-                               browser);
+                               domain);
     }
 
     /**
@@ -383,11 +383,11 @@ private:
         service.id_ = id;
     }
 
-    void registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
+    void registerServiceBrowser(const MDNSServiceBrowser::Ptr & browser,
+                                MDNSInterfaceIndex interfaceIndex,
                                 const std::string &type,
                                 const std::vector<std::string> *subtypes,
-                                const std::string &domain,
-                                const MDNSServiceBrowser::Ptr & browser);
+                                const std::string &domain);
 
     class PImpl;
     std::unique_ptr<PImpl> pimpl_;

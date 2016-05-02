@@ -767,10 +767,10 @@ public:
         }
     }
 
-    void registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
+    void registerServiceBrowser(const MDNSServiceBrowser::Ptr & browser,
+                                MDNSInterfaceIndex interfaceIndex,
                                 const std::string &type,
-                                const std::string &domain,
-                                const MDNSServiceBrowser::Ptr & browser)
+                                const std::string &domain)
     {
         MDNSManager::PImpl::AvahiBrowserRecord *browserRec = 0;
         auto it = browserRecords.find(browser);
@@ -894,11 +894,11 @@ void MDNSManager::unregisterService(MDNSService &service)
     }
 }
 
-void MDNSManager::registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
+void MDNSManager::registerServiceBrowser(const MDNSServiceBrowser::Ptr & browser,
+                                         MDNSInterfaceIndex interfaceIndex,
                                          const std::string &type,
                                          const std::vector<std::string> *subtypes,
-                                         const std::string &domain,
-                                         const MDNSServiceBrowser::Ptr & browser)
+                                         const std::string &domain)
 {
     if (type.empty())
         throw std::logic_error("type argument can't be empty");
@@ -911,12 +911,12 @@ void MDNSManager::registerServiceBrowser(MDNSInterfaceIndex interfaceIndex,
         for (auto it = subtypes->begin(), eit = subtypes->end(); it != eit; ++it)
         {
             subtype = it->empty() ? type : (*it+"._sub."+type);
-            pimpl_->registerServiceBrowser(interfaceIndex, subtype, domain, browser);
+            pimpl_->registerServiceBrowser(browser, interfaceIndex, subtype, domain);
         }
     }
     else
     {
-        pimpl_->registerServiceBrowser(interfaceIndex, type, domain, browser);
+        pimpl_->registerServiceBrowser(browser, interfaceIndex, type, domain);
     }
 }
 

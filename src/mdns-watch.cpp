@@ -29,7 +29,7 @@ public:
             {
                 std::cerr << "New service type '"<<service.getType() << "'" << std::endl;
                 serviceTypes_.insert(service.getType());
-                manager_.registerServiceBrowser(MDNS_IF_ANY, service.getType(), "", shared_from_this());
+                manager_.registerServiceBrowser(shared_from_this(), MDNS_IF_ANY, service.getType(), "");
             }
         }
         else
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 
     MyBrowser::Ptr browser = std::make_shared<MyBrowser>(mgr);
 
-    mgr.registerServiceBrowser(MDNS_IF_ANY, "", "", browser);
+    mgr.registerServiceBrowser(browser, MDNS_IF_ANY, "", "");
 
     std::cout << "Running loop. Press Enter to exit...";
     mgr.run();
