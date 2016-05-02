@@ -52,17 +52,23 @@ find_package(Bonjour)
 find_package(Avahi)
 
 # Build
-
-#set(AVAHI_FOUND FALSE)
-#set(BONJOUR_FOUND FALSE)
+if(DISABLE_AVAHI)
+set(AVAHI_FOUND FALSE)
+endif()
+if(DISABLE_BONJOUR)
+set(BONJOUR_FOUND FALSE)
+endif()
 
 if (AVAHI_FOUND)
+    message(STATUS "Use Avahi library")
     add_library(mDNSWrapper "src/CommonMDNSManager.cpp" "src/AvahiMDNSManager.cpp")
     target_link_libraries(mDNSWrapper ${AVAHI_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 elseif(BONJOUR_FOUND)
+    message(STATUS "Use Bonjour library")
     add_library(mDNSWrapper "src/CommonMDNSManager.cpp" "src/BonjourMDNSManager.cpp")
     target_link_libraries(mDNSWrapper ${BONJOUR_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 else()
+    message(STATUS "Use dummy implementation")
     add_library(mDNSWrapper "src/CommonMDNSManager.cpp" "src/DummyMDNSManager.cpp")
 endif()
 
