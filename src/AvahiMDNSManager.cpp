@@ -407,7 +407,7 @@ public:
         }
     };
 
-    typedef std::unordered_map<std::string, AvahiServiceRecord> AvahiServiceRecordMap;
+    typedef std::unordered_map<MDNSService::Id, AvahiServiceRecord> AvahiServiceRecordMap;
 
     struct AvahiBrowserRecord
     {
@@ -851,20 +851,15 @@ void MDNSManager::registerService(MDNSService &service)
 
     ImplLockGuard g(pimpl_->mutex);
 
-    MDNSManager::PImpl::AvahiServiceRecord *serviceRec = 0;
-    auto it = pimpl_->serviceRecords.find(service.getName());
-    if (it == pimpl_->serviceRecords.end())
-    {
-        it = pimpl_->serviceRecords.insert(
-                std::make_pair(service.getName(),
-                    MDNSManager::PImpl::AvahiServiceRecord(service.getName(), *pimpl_))).first;
-    }
-    serviceRec = &it->second;
-
     const MDNSService::Id serviceId = getNewServiceId();
+
+    auto it = pimpl_->serviceRecords.insert(
+                std::make_pair(serviceId,
+                    MDNSManager::PImpl::AvahiServiceRecord(service.getName(), *pimpl_))).first;
+
     setServiceId(service, serviceId);
 
-    serviceRec->services.push_back(service);
+    it->second.services.push_back(service);
     pimpl_->registerMissingServices(pimpl_->client);
 }
 
@@ -875,12 +870,14 @@ void MDNSManager::unregisterService(MDNSService &service)
 
     ImplLockGuard g(pimpl_->mutex);
 
-    for (auto it = pimpl_->serviceRecords.begin(), eit = pimpl_->serviceRecords.end(); it != eit; ++it)
+    const MDNSService::Id serviceId = service.getId();
+    auto it = pimpl_->serviceRecords.find(serviceId);
+    if (it != pimpl_->serviceRecords.end())
     {
         bool changed = false;
         for (auto jt = it->second.services.begin(); jt != it->second.services.end(); )
         {
-            if (jt->getId() == service.getId())
+            if (jt->getId() == serviceId)
             {
                 jt = it->second.services.erase(jt);
                 setServiceId(service, MDNSService::NO_SERVICE);
