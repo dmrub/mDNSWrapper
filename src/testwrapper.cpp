@@ -34,9 +34,9 @@ public:
         }
     }
 
-    void onRemovedService(const std::string &name, const std::string &type, const std::string &domain) override
+    void onRemovedService(const std::string &name, const std::string &type, const std::string &domain, MDNSInterfaceIndex interfaceIndex) override
     {
-        std::cerr<<"Removed "<<name_<<" service "<<name<<" of type "<<type<<" on domain "<<domain<<std::endl;
+        std::cerr<<"Removed "<<name_<<" service "<<name<<" of type "<<type<<" on domain "<<domain<<" interface "<<interfaceIndex<<std::endl;
     }
 
 private:

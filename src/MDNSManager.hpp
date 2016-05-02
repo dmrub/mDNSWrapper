@@ -287,7 +287,7 @@ public:
 
     virtual void onNewService(const MDNSService &service) { }
 
-    virtual void onRemovedService(const std::string &name, const std::string &type, const std::string &domain) { }
+    virtual void onRemovedService(const std::string &name, const std::string &type, const std::string &domain, MDNSInterfaceIndex interfaceIndex) { }
 
     virtual ~MDNSServiceBrowser() { }
 };

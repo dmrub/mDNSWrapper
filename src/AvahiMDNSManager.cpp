@@ -554,9 +554,9 @@ public:
                     if (self->handler)
                     {
                         if (isValidType(type))
-                            self->handler->onRemovedService(fromAvahiStr(name), fromAvahiStr(type), fromAvahiStr(domain));
+                            self->handler->onRemovedService(fromAvahiStr(name), fromAvahiStr(type), fromAvahiStr(domain), fromAvahiIfIndex(interface));
                         else
-                            self->handler->onRemovedService("", fromAvahiStr(name)+"."+fromAvahiStr(type), fromAvahiStr(domain));
+                            self->handler->onRemovedService("", fromAvahiStr(name)+"."+fromAvahiStr(type), fromAvahiStr(domain), fromAvahiIfIndex(interface));
                     }
                     break;
 

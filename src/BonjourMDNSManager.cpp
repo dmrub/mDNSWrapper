@@ -387,7 +387,7 @@ public:
                     }
                     else
                     {
-                        self->handler->onRemovedService("", std::move(type), std::move(domain));
+                        self->handler->onRemovedService("", std::move(type), std::move(domain), fromDnsSdInterfaceIndex(interfaceIndex));
                     }
                 }
             }
@@ -425,7 +425,7 @@ public:
                         removeTrailingDot(type);
                         removeTrailingDot(domain);
 
-                        self->handler->onRemovedService(serviceName, std::move(type), std::move(domain));
+                        self->handler->onRemovedService(serviceName, std::move(type), std::move(domain), fromDnsSdInterfaceIndex(interfaceIndex));
                     }
                 }
             }
