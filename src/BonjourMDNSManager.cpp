@@ -732,6 +732,7 @@ void MDNSManager::unregisterService(MDNSService &service)
     {
         DNSServiceRefDeallocate(it->second->serviceRef);
         pimpl_->registerRecordMap.erase(it);
+        setServiceId(service, MDNSService::NO_SERVICE);
     }
 }
 

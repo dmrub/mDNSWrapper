@@ -883,6 +883,7 @@ void MDNSManager::unregisterService(MDNSService &service)
             if (jt->getId() == service.getId())
             {
                 jt = it->second.services.erase(jt);
+                setServiceId(service, MDNSService::NO_SERVICE);
                 changed = true;
             }
             else
